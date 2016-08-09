@@ -14,6 +14,9 @@
   "peerDependencies": {
     "hubot": "2.x"
   },
+  "dependencies": {
+    "lodash": "4.13.1"
+  },
   "repository": {
     "type": "git",
     "url": "git://github.com/justmiles/hubot-gerrit.git"
@@ -23,7 +26,8 @@
   },
   "contributors": [
   { "name":"nparry" },
-  { "name":"justmiles" }
+  { "name":"justmiles" },
+  { "name":"ephelip" }
   ],
   "bugs": {
     "url": "https://github.com/justmiles/hubot-gerrit/issues"
