@@ -6,10 +6,10 @@
 #
 # Configuration:
 #   HUBOT_GERRIT_SSH_URL
-#
+#   HUBOT_GERRIT_TOREVIEW_FILTER
 # Commands:
 #   hubot search gerrit _<query>_ - Search Gerrit for changes (limited to 3 results)
-#   hubot gerrit top open patchs - List projects with the number of open patchs for each
+#   hubot gerrit to review - List projects with the number of open patchs for each
 #   hubot show gerrit updates for _event_  _(patchset-created|change-abandoned|change-restored|change-merged)_ - Subscribe active channel to Gerrit updates
 #   hubot show gerrit updates for _(project|user)_  _<update>_ - Subscribe active channel to Gerrit updates
 #   hubot remove gerrit updates for _(project|user|event)_  _<update>_ - Remove Gerrit update from active channel
@@ -27,6 +27,9 @@ url = require "url"
 
 # Required - The SSH URL for your Gerrit server.
 sshUrl = process.env.HUBOT_GERRIT_SSH_URL || ""
+
+# Optional - A filter for gerrit to review query.
+toreviewFilter = process.env.HUBOT_GERRIT_TOREVIEW_FILTER || "status:open"
 
 attachments =
   queryResult: (json) -> {
@@ -166,14 +169,14 @@ module.exports = (robot) ->
     robot.logger.error "Gerrit commands inactive because HUBOT_GERRIT_SSH_URL=#{gerrit.href} is not a valid SSH URL"
   else
     eventStreamMe robot, gerrit
-    robot.respond /gerrit top open patchs/i, showOpenPatchs robot, gerrit
+    robot.respond /gerrit to review/i, showOpenPatchs robot, gerrit
     robot.respond /(?:search|query)(?: me)? gerrit (.+)/i, searchMe robot, gerrit
     robot.respond /(show)(?: me)? gerrit updates for (project|user|event) (.+)/i, subscribeToEvents robot
     robot.respond /(remove)(?: me)? gerrit updates for (project|user|event) (.+)/i, deleteSubscription robot
     robot.respond /view gerrit subscriptions/i, showSubscriptions robot
 
 showOpenPatchs = (robot, gerrit) -> (msg) ->
-  cp.exec "ssh #{gerrit.hostname} -p #{gerrit.port} gerrit query --format=JSON status:open", (err, stdout, stderr) ->
+  cp.exec "ssh #{gerrit.hostname} -p #{gerrit.port} gerrit query --format=JSON #{toreviewFilter}", (err, stdout, stderr) ->
     if err
       msg.send "Sorry, something went wrong talking with Gerrit: ```#{stderr}```"
     else
@@ -190,8 +193,15 @@ showOpenPatchs = (robot, gerrit) -> (msg) ->
             patch.project = patch.project.substr(0, patch.project.indexOf('/'))
           return
         projects = _.groupBy(results, 'project')
+        sortedProjects = []
         for key of projects
-          msg.send "#{key} : #{projects[key].length}"
+            sortedProjects.push {project: key, nb: projects[key].length}
+        sortedProjects = _.sortBy sortedProjects, (item) ->
+          parseInt item.nb
+        message = ""
+        _.map sortedProjects, (project) ->
+          message+="#{project.project}:#{project.nb} "
+        msg.send message
 
 searchMe = (robot, gerrit) -> (msg) ->
   cp.exec "ssh #{gerrit.hostname} -p #{gerrit.port} gerrit query --format=JSON -- #{msg.match[1]} limit:3", (err, stdout, stderr) ->
