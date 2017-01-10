@@ -10,7 +10,7 @@
 # Commands:
 #   hubot search gerrit _<query>_ - Search Gerrit for changes (limited to 3 results)
 #   hubot gerrit to review - List projects with the number of open patchs for each
-#   hubot gerrit user to review - List users with the number of open patchs for each
+#   hubot gerrit lagging users - List users with the number of open patchs for each
 #   hubot show gerrit updates for _event_  _(patchset-created|change-abandoned|change-restored|change-merged)_ - Subscribe active channel to Gerrit updates
 #   hubot show gerrit updates for _(project|user)_  _<update>_ - Subscribe active channel to Gerrit updates
 #   hubot remove gerrit updates for _(project|user|event)_  _<update>_ - Remove Gerrit update from active channel
@@ -171,14 +171,14 @@ module.exports = (robot) ->
   else
     eventStreamMe robot, gerrit
     robot.respond /gerrit to review/i, showOpenPatchsByProject robot, gerrit
-    robot.respond /gerrit user to review/i, showOpenPatchsByUser robot, gerrit
+    robot.respond /gerrit lagging users/i, showOpenPatchsByUser robot, gerrit
     robot.respond /(?:search|query)(?: me)? gerrit (.+)/i, searchMe robot, gerrit
     robot.respond /(show)(?: me)? gerrit updates for (project|user|event) (.+)/i, subscribeToEvents robot
     robot.respond /(remove)(?: me)? gerrit updates for (project|user|event) (.+)/i, deleteSubscription robot
     robot.respond /view gerrit subscriptions/i, showSubscriptions robot
 
 showOpenPatchsByUser = (robot, gerrit) -> (msg) ->
-  cp.exec "ssh #{gerrit.hostname} -p #{gerrit.port} gerrit query --format=JSON -- #{toreviewFilter}", (err, stdout, stderr) ->
+  cp.exec "ssh #{gerrit.hostname} -p #{gerrit.port} gerrit query --format=JSON -- #{toreviewFilter} age:1week", (err, stdout, stderr) ->
     if err
       msg.send "Sorry, something went wrong talking with Gerrit: ```#{stderr}```"
     else
