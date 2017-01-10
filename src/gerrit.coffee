@@ -10,6 +10,7 @@
 # Commands:
 #   hubot search gerrit _<query>_ - Search Gerrit for changes (limited to 3 results)
 #   hubot gerrit to review - List projects with the number of open patchs for each
+#   hubot gerrit user to review - List users with the number of open patchs for each
 #   hubot show gerrit updates for _event_  _(patchset-created|change-abandoned|change-restored|change-merged)_ - Subscribe active channel to Gerrit updates
 #   hubot show gerrit updates for _(project|user)_  _<update>_ - Subscribe active channel to Gerrit updates
 #   hubot remove gerrit updates for _(project|user|event)_  _<update>_ - Remove Gerrit update from active channel
@@ -169,13 +170,42 @@ module.exports = (robot) ->
     robot.logger.error "Gerrit commands inactive because HUBOT_GERRIT_SSH_URL=#{gerrit.href} is not a valid SSH URL"
   else
     eventStreamMe robot, gerrit
-    robot.respond /gerrit to review/i, showOpenPatchs robot, gerrit
+    robot.respond /gerrit to review/i, showOpenPatchsByProject robot, gerrit
+    robot.respond /gerrit user to review/i, showOpenPatchsByUser robot, gerrit
     robot.respond /(?:search|query)(?: me)? gerrit (.+)/i, searchMe robot, gerrit
     robot.respond /(show)(?: me)? gerrit updates for (project|user|event) (.+)/i, subscribeToEvents robot
     robot.respond /(remove)(?: me)? gerrit updates for (project|user|event) (.+)/i, deleteSubscription robot
     robot.respond /view gerrit subscriptions/i, showSubscriptions robot
 
-showOpenPatchs = (robot, gerrit) -> (msg) ->
+showOpenPatchsByUser = (robot, gerrit) -> (msg) ->
+  cp.exec "ssh #{gerrit.hostname} -p #{gerrit.port} gerrit query --format=JSON -- #{toreviewFilter}", (err, stdout, stderr) ->
+    if err
+      msg.send "Sorry, something went wrong talking with Gerrit: ```#{stderr}```"
+    else
+      results = (JSON.parse l for l in stdout.split "\n" when l isnt "")
+      status = results[results.length - 1]
+      if status.type == "error"
+        msg.send "Sorry, Gerrit didn't like your query: ```#{status.message}```"
+      else if status.rowCount == 0
+        msg.send "Gerrit didn't find anything matching your query"
+      else
+        results.splice -1, 1
+        results.forEach (patch) ->
+          if patch.owner
+            patch.owner = patch.owner.username
+          return
+        projects = _.groupBy(results, 'owner')
+        sortedProjects = []
+        for key of projects
+            sortedProjects.push {project: key, nb: projects[key].length}
+        sortedProjects = _.sortBy sortedProjects, (item) ->
+          - parseInt item.nb
+        message = ""
+        _.map sortedProjects, (project) ->
+          message+="#{project.project}:#{project.nb} "
+        msg.send message
+
+showOpenPatchsByProject = (robot, gerrit) -> (msg) ->
   cp.exec "ssh #{gerrit.hostname} -p #{gerrit.port} gerrit query --format=JSON -- #{toreviewFilter}", (err, stdout, stderr) ->
     if err
       msg.send "Sorry, something went wrong talking with Gerrit: ```#{stderr}```"
