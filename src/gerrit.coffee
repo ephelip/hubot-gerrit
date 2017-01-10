@@ -200,7 +200,7 @@ showOpenPatchsByUser = (robot, gerrit) -> (msg) ->
             sortedProjects.push {project: key, nb: projects[key].length}
         sortedProjects = _.sortBy sortedProjects, (item) ->
           - parseInt item.nb
-        message = ""
+        message = "changes untouched since 1 week or more, per user: "
         _.map sortedProjects, (project) ->
           message+="#{project.project}:#{project.nb} "
         msg.send message
@@ -228,7 +228,7 @@ showOpenPatchsByProject = (robot, gerrit) -> (msg) ->
             sortedProjects.push {project: key, nb: projects[key].length}
         sortedProjects = _.sortBy sortedProjects, (item) ->
           - parseInt item.nb
-        message = ""
+        message = "changes that need review, per customer: "
         _.map sortedProjects, (project) ->
           message+="#{project.project}:#{project.nb} "
         msg.send message
